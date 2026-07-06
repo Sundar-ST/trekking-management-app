@@ -2,6 +2,7 @@ from copy import error
 from flask import Flask, render_template, request, redirect, url_for, session
 from models import get_db_connection, init_db
 import sqlite3
+from datetime import date
 
 app = Flask(__name__)
 app.secret_key = 'dev-secret-key-change-later'
@@ -128,24 +129,31 @@ def blacklist_staff(staff_id):
 
 @app.route('/admin/treks')
 def manage_treks():
-    if session.get('role')!='admin':
+    if session.get('role') != 'admin':
         return redirect(url_for('login'))
 
-    search = request.args.get('search','')
+    search = request.args.get('search', '')
 
-    conn=get_db_connection()
+    conn = get_db_connection()
+
+    base_query = '''
+        SELECT trek.*, staff.name AS staff_name
+        FROM trek
+        LEFT JOIN staff ON trek.assigned_staff_id = staff.staff_id
+    '''
 
     if search:
-        treks=conn.execute(
-            "select * from trek where name like ? or location like ?",
+        treks = conn.execute(
+            base_query + ' WHERE trek.name LIKE ? OR trek.location LIKE ?',
             (f'%{search}%', f'%{search}%')
         ).fetchall()
     else:
-        treks=conn.execute("select * from trek").fetchall()
+        treks = conn.execute(base_query).fetchall()
 
     conn.close()
 
-    return render_template('manage_treks.html',treks=treks, search=search)
+    return render_template('manage_treks.html', treks=treks, search=search)
+
 
 @app.route('/admin/treks/add', methods=['GET','POST'])
 def add_trek():
@@ -288,7 +296,6 @@ def manage_trek(trek_id):
 
     conn = get_db_connection()
 
-    # Security check: make sure this trek actually belongs to this staff member
     trek = conn.execute(
         'SELECT * FROM trek WHERE trek_id = ? AND assigned_staff_id = ?',
         (trek_id, session['id'])
@@ -322,12 +329,68 @@ def manage_trek(trek_id):
 
     return render_template('manage_trek.html', trek=trek, participants=participants)
 
+    
 
 @app.route('/user/dashboard')
 def user_dashboard():
-    if session.get('role')!='user':
+    if session.get('role') != 'user':
         return redirect(url_for('login'))
-    return f"welcome {session['name']}! (user dashboard coming next)"
+
+    conn = get_db_connection()
+    open_treks = conn.execute(
+        "SELECT * FROM trek WHERE status = 'Open'"
+    ).fetchall()
+
+    # Get the set of trek_ids this user has already booked (and not cancelled)
+    my_bookings = conn.execute(
+        "SELECT trek_id FROM booking WHERE user_id = ? AND status = 'Booked'",
+        (session['id'],)
+    ).fetchall()
+    booked_trek_ids = [b['trek_id'] for b in my_bookings]
+
+    conn.close()
+
+    return render_template('user_dashboard.html', open_treks=open_treks, booked_trek_ids=booked_trek_ids)
+
+@app.route('/user/book/<int:trek_id>', methods=['POST'])
+def book_trek(trek_id):
+    if session.get('role') != 'user':
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+
+    trek = conn.execute(
+        "SELECT * FROM trek WHERE trek_id = ? AND status = 'Open'",
+        (trek_id,)
+    ).fetchone()
+
+    if trek is None or trek['available_slots'] <= 0:
+        conn.close()
+        return redirect(url_for('user_dashboard'))
+
+    # Prevent the same user from booking the same trek twice
+    existing = conn.execute(
+        "SELECT * FROM booking WHERE user_id = ? AND trek_id = ? AND status = 'Booked'",
+        (session['id'], trek_id)
+    ).fetchone()
+
+    if existing is not None:
+        conn.close()
+        return redirect(url_for('user_dashboard'))
+
+    conn.execute(
+        'INSERT INTO booking (user_id, trek_id, booking_date, status) VALUES (?, ?, ?, ?)',
+        (session['id'], trek_id, date.today().isoformat(), 'Booked')
+    )
+    conn.execute(
+        'UPDATE trek SET available_slots = available_slots - 1 WHERE trek_id = ?',
+        (trek_id,)
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('user_dashboard'))
+
 
 
 @app.route('/register',methods=['GET','POST'])
