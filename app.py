@@ -329,19 +329,29 @@ def manage_trek(trek_id):
 
     return render_template('manage_trek.html', trek=trek, participants=participants)
 
-
-
 @app.route('/user/dashboard')
 def user_dashboard():
     if session.get('role') != 'user':
         return redirect(url_for('login'))
 
-    conn = get_db_connection()
-    open_treks = conn.execute(
-        "SELECT * FROM trek WHERE status = 'Open'"
-    ).fetchall()
+    search = request.args.get('search', '')
+    difficulty = request.args.get('difficulty', '')
 
-    # Get the set of trek_ids this user has already booked (and not cancelled)
+    conn = get_db_connection()
+
+    query = "SELECT * FROM trek WHERE status = 'Open' AND available_slots > 0"
+    params = []
+
+    if search:
+        query += " AND (name LIKE ? OR location LIKE ?)"
+        params.extend([f'%{search}%', f'%{search}%'])
+
+    if difficulty:
+        query += " AND difficulty = ?"
+        params.append(difficulty)
+
+    open_treks = conn.execute(query, params).fetchall()
+
     my_bookings = conn.execute(
         "SELECT trek_id FROM booking WHERE user_id = ? AND status = 'Booked'",
         (session['id'],)
@@ -350,7 +360,14 @@ def user_dashboard():
 
     conn.close()
 
-    return render_template('user_dashboard.html', open_treks=open_treks, booked_trek_ids=booked_trek_ids)
+    return render_template(
+        'user_dashboard.html',
+        open_treks=open_treks,
+        booked_trek_ids=booked_trek_ids,
+        search=search,
+        difficulty=difficulty
+    )
+
 
 @app.route('/user/book/<int:trek_id>', methods=['POST'])
 def book_trek(trek_id):
@@ -439,6 +456,47 @@ def cancel_booking(booking_id):
     conn.close()
     return redirect(url_for('my_bookings'))
 
+
+
+def get_current_user(user_id):
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM user WHERE user_id = ?', (user_id,)).fetchone()
+    conn.close()
+    return user
+
+@app.route('/user/profile', methods=['GET', 'POST'])
+def edit_profile():
+    if session.get('role') != 'user':
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+
+    if request.method == 'POST':
+        name = request.form['name']
+        contact = request.form['contact']
+        password = request.form['password']
+
+        if password:
+            conn.execute(
+                'UPDATE user SET name = ?, contact = ?, password = ? WHERE user_id = ?',
+                (name, contact, password, session['id'])
+            )
+        else:
+            conn.execute(
+                'UPDATE user SET name = ?, contact = ? WHERE user_id = ?',
+                (name, contact, session['id'])
+            )
+        conn.commit()
+
+        session['name'] = name  # keep navbar/session in sync with the new name
+
+        conn.close()
+        return render_template('edit_profile.html', user=get_current_user(session['id']), message='Profile updated successfully')
+
+    user = conn.execute('SELECT * FROM user WHERE user_id = ?', (session['id'],)).fetchone()
+    conn.close()
+
+    return render_template('edit_profile.html', user=user)
 
 
 

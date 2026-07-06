@@ -1,53 +1,75 @@
-<!DOCTYPE html>
 {% extends "base.html" %}
-{% block title %}User Dashboard - Trekking Management{% endblock %}
+{% block title %}Available Treks{% endblock %}
 {% block content %}
-    <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Available Treks</h2>
-        </div>
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Available Treks</h2>
+    </div>
 
-        <div class="card">
-            <div class="card-body">
-                {% if open_treks|length == 0 %}
-                    <p class="text-muted">No treks currently open for booking.</p>
-                {% else %}
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Location</th>
-                                <th>Difficulty</th>
-                                <th>Duration</th>
-                                <th>Slots Left</th>
-                                <th>Dates</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for t in open_treks %}
-                            <tr>
-                                <td>{{ t.name }}</td>
-                                <td>{{ t.location }}</td>
-                                <td>{{ t.difficulty }}</td>
-                                <td>{{ t.duration_days }} days</td>
-                                <td>{{ t.available_slots }}</td>
-                                <td>{{ t.start_date }} to {{ t.end_date }}</td>
-                                <td>
-                                    {% if t.trek_id in booked_trek_ids %}
-                                        <button class="btn btn-sm btn-secondary" disabled>Booked</button>
-                                    {% else %}
-                                        <form method="POST" action="{{ url_for('book_trek', trek_id=t.trek_id) }}">
-                                            <button type="submit" class="btn btn-sm btn-success">Book</button>
-                                        </form>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+    <div class="card">
+        <div class="card-body">
+
+            <form method="GET" action="{{ url_for('user_dashboard') }}" class="mb-3">
+                <div class="row g-2">
+                    <div class="col-md-5">
+                        <input type="text" name="search" class="form-control" placeholder="Search by name or location" value="{{ search }}">
+                    </div>
+                    <div class="col-md-4">
+                        <select name="difficulty" class="form-select">
+                            <option value="">All Difficulties</option>
+                            <option value="Easy" {% if difficulty == 'Easy' %}selected{% endif %}>Easy</option>
+                            <option value="Moderate" {% if difficulty == 'Moderate' %}selected{% endif %}>Moderate</option>
+                            <option value="Hard" {% if difficulty == 'Hard' %}selected{% endif %}>Hard</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                    </div>
+                </div>
+                {% if search or difficulty %}
+                    <a href="{{ url_for('user_dashboard') }}" class="d-inline-block mt-2">Clear filters</a>
                 {% endif %}
-            </div>
+            </form>
+
+            {% if open_treks|length == 0 %}
+                <p class="text-muted">No treks currently open for booking.</p>
+            {% else %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Location</th>
+                            <th>Difficulty</th>
+                            <th>Duration</th>
+                            <th>Slots Left</th>
+                            <th>Dates</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in open_treks %}
+                        <tr>
+                            <td>{{ t.name }}</td>
+                            <td>{{ t.location }}</td>
+                            <td>{{ t.difficulty }}</td>
+                            <td>{{ t.duration_days }} days</td>
+                            <td>{{ t.available_slots }}</td>
+                            <td>{{ t.start_date }} to {{ t.end_date }}</td>
+                            <td>
+                                {% if t.trek_id in booked_trek_ids %}
+                                    <button class="btn btn-sm btn-secondary" disabled>Booked</button>
+                                {% else %}
+                                    <form method="POST" action="{{ url_for('book_trek', trek_id=t.trek_id) }}">
+                                        <button type="submit" class="btn btn-sm btn-success">Book</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
         </div>
     </div>
+</div>
 {% endblock %}
