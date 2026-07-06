@@ -224,9 +224,6 @@ def manage_users():
     return render_template('manage_users.html', all_users=all_users, search=search)
 
 
-
-
-
 @app.route('/admin/users/<int:user_id>/blacklist', methods=['POST'])
 def blacklist_user(user_id):
     if session.get('role') != 'admin':
@@ -257,7 +254,73 @@ def activate_user(user_id):
 def staff_dashboard():
     if session.get('role') != 'staff':
         return redirect(url_for('login'))
-    return f"Welcome {session['name']}! (staff dashboard coming next)"
+
+    conn = get_db_connection()
+
+    staff_id = session['id']
+
+    assigned_treks = conn.execute(
+        'SELECT * FROM trek WHERE assigned_staff_id = ?',
+        (staff_id,)
+    ).fetchall()
+
+    # For each trek, also count how many users have booked it
+    treks_with_counts = []
+    for trek in assigned_treks:
+        booking_count = conn.execute(
+            "SELECT COUNT(*) FROM booking WHERE trek_id = ? AND status = 'Booked'",
+            (trek['trek_id'],)
+        ).fetchone()[0]
+        treks_with_counts.append({
+            'trek': trek,
+            'booking_count': booking_count
+        })
+
+    conn.close()
+
+    return render_template('staff_dashboard.html', treks_with_counts=treks_with_counts)
+
+
+@app.route('/staff/treks/<int:trek_id>/manage', methods=['GET', 'POST'])
+def manage_trek(trek_id):
+    if session.get('role') != 'staff':
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+
+    # Security check: make sure this trek actually belongs to this staff member
+    trek = conn.execute(
+        'SELECT * FROM trek WHERE trek_id = ? AND assigned_staff_id = ?',
+        (trek_id, session['id'])
+    ).fetchone()
+
+    if trek is None:
+        conn.close()
+        return redirect(url_for('staff_dashboard'))
+
+    if request.method == 'POST':
+        available_slots = request.form['available_slots']
+        status = request.form['status']
+
+        conn.execute(
+            'UPDATE trek SET available_slots = ?, status = ? WHERE trek_id = ?',
+            (available_slots, status, trek_id)
+        )
+        conn.commit()
+        conn.close()
+        return redirect(url_for('staff_dashboard'))
+
+    participants = conn.execute(
+        '''SELECT user.name, user.email, booking.status, booking.booking_date
+           FROM booking
+           JOIN user ON booking.user_id = user.user_id
+           WHERE booking.trek_id = ?''',
+        (trek_id,)
+    ).fetchall()
+
+    conn.close()
+
+    return render_template('manage_trek.html', trek=trek, participants=participants)
 
 
 @app.route('/user/dashboard')

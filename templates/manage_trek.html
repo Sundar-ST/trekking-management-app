@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Trek - Trekking Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>{{ trek.name }}</h2>
+            <a href="{{ url_for('staff_dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h4 class="card-title">Update Trek</h4>
+                <form method="POST" action="{{ url_for('manage_trek', trek_id=trek.trek_id) }}">
+                    <div class="mb-3">
+                        <label class="form-label">Available Slots</label>
+                        <input type="number" name="available_slots" class="form-control" min="0" value="{{ trek.available_slots }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select" required>
+                            {% for st in ['Pending', 'Approved', 'Open', 'Closed', 'Completed'] %}
+                                <option value="{{ st }}" {% if trek.status == st %}selected{% endif %}>{{ st }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">Registered Participants</h4>
+                {% if participants|length == 0 %}
+                    <p class="text-muted">No one has booked this trek yet.</p>
+                {% else %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Booking Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in participants %}
+                            <tr>
+                                <td>{{ p.name }}</td>
+                                <td>{{ p.email }}</td>
+                                <td>{{ p.booking_date }}</td>
+                                <td>{{ p.status }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
