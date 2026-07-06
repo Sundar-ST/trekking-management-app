@@ -20,6 +20,7 @@
                 <a class="nav-link" href="{{ url_for('staff_dashboard') }}">My Treks</a>
             {% elif session['role'] == 'user' %}
                 <a class="nav-link" href="{{ url_for('user_dashboard') }}">Available Treks</a>
+                <a class="nav-link" href="{{ url_for('my_bookings') }}">My Bookings</a>
             {% endif %}
         </div>
         <span class="navbar-text text-light me-3">{{ session.get('name') }}</span>

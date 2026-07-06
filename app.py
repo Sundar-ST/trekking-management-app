@@ -329,7 +329,7 @@ def manage_trek(trek_id):
 
     return render_template('manage_trek.html', trek=trek, participants=participants)
 
-    
+
 
 @app.route('/user/dashboard')
 def user_dashboard():
@@ -390,6 +390,56 @@ def book_trek(trek_id):
     conn.close()
 
     return redirect(url_for('user_dashboard'))
+
+
+@app.route('/user/bookings')
+def my_bookings():
+    if session.get('role') != 'user':
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    bookings = conn.execute(
+        '''SELECT booking.booking_id, booking.booking_date, booking.status,
+                  trek.name AS trek_name, trek.location, trek.start_date, trek.end_date
+           FROM booking
+           JOIN trek ON booking.trek_id = trek.trek_id
+           WHERE booking.user_id = ?
+           ORDER BY booking.booking_date DESC''',
+        (session['id'],)
+    ).fetchall()
+    conn.close()
+
+    return render_template('my_bookings.html', bookings=bookings)
+
+
+@app.route('/user/bookings/<int:booking_id>/cancel', methods=['POST'])
+def cancel_booking(booking_id):
+    if session.get('role') != 'user':
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+
+    # Make sure this booking actually belongs to this user
+    booking = conn.execute(
+        "SELECT * FROM booking WHERE booking_id = ? AND user_id = ? AND status = 'Booked'",
+        (booking_id, session['id'])
+    ).fetchone()
+
+    if booking is not None:
+        conn.execute(
+            "UPDATE booking SET status = 'Cancelled' WHERE booking_id = ?",
+            (booking_id,)
+        )
+        conn.execute(
+            'UPDATE trek SET available_slots = available_slots + 1 WHERE trek_id = ?',
+            (booking['trek_id'],)
+        )
+        conn.commit()
+
+    conn.close()
+    return redirect(url_for('my_bookings'))
+
+
 
 
 

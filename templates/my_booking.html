@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}My Bookings{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>My Bookings</h2>
+        <a href="{{ url_for('user_dashboard') }}" class="btn btn-outline-secondary">Browse Treks</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if bookings|length == 0 %}
+                <p class="text-muted">You haven't booked any treks yet.</p>
+            {% else %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Trek Name</th>
+                            <th>Location</th>
+                            <th>Dates</th>
+                            <th>Booked On</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in bookings %}
+                        <tr>
+                            <td>{{ b.trek_name }}</td>
+                            <td>{{ b.location }}</td>
+                            <td>{{ b.start_date }} to {{ b.end_date }}</td>
+                            <td>{{ b.booking_date }}</td>
+                            <td>
+                                {% if b.status == 'Booked' %}
+                                    <span class="badge bg-success">Booked</span>
+                                {% elif b.status == 'Cancelled' %}
+                                    <span class="badge bg-danger">Cancelled</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ b.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if b.status == 'Booked' %}
+                                    <form method="POST" action="{{ url_for('cancel_booking', booking_id=b.booking_id) }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
