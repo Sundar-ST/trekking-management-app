@@ -3,6 +3,8 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from models import get_db_connection, init_db
 import sqlite3
 from datetime import date
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 app = Flask(__name__)
 app.secret_key = 'dev-secret-key-change-later'
@@ -22,23 +24,23 @@ def login():
 
         if role=='admin':
             account=conn.execute(
-                'select * from admin where username=? and password=?',
-                (email,password,)
+                'select * from admin where username=?',
+                (email,)
             ).fetchone()
         elif role=='staff':
             account=conn.execute(
-                'select * from staff where email=? and password=?',
-                (email,password)
+                'select * from staff where email=?',
+                (email,)
             ).fetchone()
         elif role=='user':
             account=conn.execute(
-                'select * from user where email =? and password=?',
-                (email,password)
+                'select * from user where email =?',
+                (email,)
             ).fetchone()
 
         conn.close()
 
-        if account is None:
+        if account is None or not check_password_hash(account['password'], password) :
             return render_template('login.html', error='Invalid credentials')
 
         if role=='staff' and account['status']=='Pending':
@@ -479,7 +481,7 @@ def edit_profile():
         if password:
             conn.execute(
                 'UPDATE user SET name = ?, contact = ?, password = ? WHERE user_id = ?',
-                (name, contact, password, session['id'])
+                (name, contact, generate_password_hash(password), session['id'])
             )
         else:
             conn.execute(
@@ -507,7 +509,7 @@ def register():
         role=request.form['role']
         name=request.form['name']
         email=request.form['email']
-        password=request.form['password']
+        password = generate_password_hash(request.form['password'])
         contact=request.form['contact']
 
         conn=get_db_connection()

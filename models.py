@@ -1,4 +1,5 @@
 import sqlite3
+from werkzeug.security import generate_password_hash
 
 DB = 'trekking.db'
 
@@ -76,7 +77,7 @@ def init_db():
     if cur.fetchone() is None:
         cur.execute(
             'INSERT INTO admin(username,password) values (?,?)',
-            ('admin','admin123')
+            ('admin',generate_password_hash('admin123'))
         )
 
     conn.commit()
