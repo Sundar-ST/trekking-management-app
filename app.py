@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 
 app = Flask(__name__)
-app.secret_key = 'dev-secret-key-change-later'
+app.secret_key = 'a8f3d9e2c7b4f1a6d8e3c9b2f7a1d4e6'
 
 @app.route('/')
 def home():
@@ -99,7 +99,7 @@ def admin_dashboard():
         staff_count=staff_count,
         booking_count=booking_count,
         all_staff=all_staff,
-        search=search
+        search=search 
     )
 
 
@@ -210,6 +210,46 @@ def assign_staff(trek_id):
     conn.close()
 
     return render_template('assign_staff.html', trek=trek, approved_staff=approved_staff)
+
+
+
+def get_all_treks():
+    conn = get_db_connection()
+    treks = conn.execute('''
+        SELECT trek.*, staff.name AS staff_name
+        FROM trek
+        LEFT JOIN staff ON trek.assigned_staff_id = staff.staff_id
+    ''').fetchall()
+    conn.close()
+    return treks
+
+@app.route('/admin/treks/<int:trek_id>/delete', methods=['POST'])
+def delete_trek(trek_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+
+    booking_count = conn.execute(
+        'SELECT COUNT(*) FROM booking WHERE trek_id = ?',
+        (trek_id,)
+    ).fetchone()[0]
+
+    if booking_count > 0:
+        conn.close()
+        return render_template(
+            'manage_treks.html',
+            treks=get_all_treks(),
+            search='',
+            error='Cannot delete this trek — it already has bookings associated with it.'
+        )
+
+    conn.execute('DELETE FROM trek WHERE trek_id = ?', (trek_id,))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('manage_treks'))
+
 
 
 @app.route('/admin/users')
@@ -542,4 +582,4 @@ def register():
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True)
+    app.run(debug=False)

@@ -7,7 +7,16 @@
         </div>
 
         <div class="card">
-             <div class="card-body">
+            <div class="card-body">
+            
+            {% if error %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {{ error }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endif %}
+
+
 
             <form method="GET" action="{{ url_for('manage_treks') }}" class="mb-3">
                 <div class="input-group">
@@ -48,7 +57,10 @@
                                 <td>{{ t.start_date }} to {{ t.end_date }}</td>
                                 <td>{{t.staff_name or '--'}}</td>
                                 <td>
-                                    <a href="{{ url_for('assign_staff', trek_id=t.trek_id) }}" class="btn btn-sm btn-outline-primary">Assign/Edit Staff</a>
+                                    <a href="{{ url_for('assign_staff', trek_id=t.trek_id) }}" class="btn btn-sm btn-outline-primary">Assign / Edit Staff</a>
+                                    <form method="POST" action="{{ url_for('delete_trek', trek_id=t.trek_id) }}" style="display:inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
                                 </td>
                             </tr>
                             {% endfor %}
