@@ -37,9 +37,10 @@ def init_db():
             name text not null,
             email text unique not null,
             password text not null,
-            contact text,
-            status text not null default 'Active'
+            contact integer,
+            status text not null default 'Active',
             -- status: Active / Blacklisted
+            CHECK (contact >= 1000000000 AND contact <= 9999999999)
         )
     ''')
 
